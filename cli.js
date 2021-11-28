@@ -130,26 +130,38 @@ const run = async (input, {outDir, plugin} = {}) => {
 	console.log(`${files.length} ${plur('image', files.length)} minified`);
 };
 
-const runOverwrite = (input, opts) => {
-	opts = Object.assign({plugin: DEFAULT_PLUGINS}, opts);
-	const use = requirePlugins(arrify(opts.plugin));
-	input.forEach(file => {
-		const origFile = fs.readFileSync(file);
-		imagemin.buffer(origFile, {use})
-			.then(buff => {
-				fs.writeFile(file, buff, err => {
-					if (err) {
-						throw err;
-					}
+const runOverwrite = async (input, {outDir, plugin} = {}) => {
+	const pluginOptions = normalizePluginOptions(plugin);
+	const plugins = await requirePlugins(pluginOptions);
+	const spinner = ora('Minifying images');
+
+	spinner.start();
+
+	try {
+		input.forEach(file => {
+			const origFile = fs.readFileSync(file);
+			imagemin.buffer(origFile, {plugins})
+				.then(buff => {
+					console.log(`${file} -> ${buff.length} bytes`);
+					fs.writeFile(file, buff, err => {
+						if (err) {
+							throw err;
+						}
+					});
+				})
+				.catch(err => {
+					throw err;
 				});
-			})
-			.catch(err => {
-				throw err;
-			});
-	});
+		});
+	} catch (error) {
+		spinner.stop();
+		throw error;
+	}
+
+	spinner.stop();
 };
 
-if ((cli.input.length === 0 && process.stdin.isTTY) || (cli.input.length !== 0 && cli.flags.overwrite)) {
+if ((cli.input.length === 0 && process.stdin.isTTY) || (cli.input.length === 0 && cli.flags.overwrite)) {
 	console.error('Specify at least one file path');
 	process.exit(1);
 }
