@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const fs = require('fs');
+import fs from 'fs'; 
 import {Buffer} from 'node:buffer';
 import process from 'node:process';
 import arrify from 'arrify';
