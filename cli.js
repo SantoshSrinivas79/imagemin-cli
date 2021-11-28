@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const fs = require('fs');
 import {Buffer} from 'node:buffer';
 import process from 'node:process';
 import arrify from 'arrify';
@@ -19,6 +20,7 @@ const cli = meow(`
 	Options
 	  --plugin, -p   Override the default plugins
 	  --out-dir, -o  Output directory
+	  --overwrite    Overwrite the original file with a minified version
 
 	Examples
 	  $ imagemin images/* --out-dir=build
@@ -29,6 +31,7 @@ const cli = meow(`
 	  # Non-Windows platforms may support the short CLI syntax for array arguments
 	  $ imagemin foo.png --plugin.pngquant.quality={0.1,0.2} > foo-optimized.png
 	  $ imagemin foo.png --plugin.webp.quality=95 --plugin.webp.preset=icon > foo-icon.webp
+	  $ imagemin --overwrite foo.png
 `, {
 	importMeta: import.meta,
 	flags: {
@@ -47,6 +50,9 @@ const cli = meow(`
 			type: 'string',
 			alias: 'o',
 		},
+		boolean: [
+			'overwrite'
+		],
 	},
 });
 
@@ -124,15 +130,42 @@ const run = async (input, {outDir, plugin} = {}) => {
 	console.log(`${files.length} ${plur('image', files.length)} minified`);
 };
 
-if (cli.input.length === 0 && process.stdin.isTTY) {
+const runOverwrite = (input, opts) => {
+	opts = Object.assign({plugin: DEFAULT_PLUGINS}, opts);
+	const use = requirePlugins(arrify(opts.plugin));
+	input.forEach(file => {
+		const origFile = fs.readFileSync(file);
+		imagemin.buffer(origFile, {use})
+			.then(buff => {
+				fs.writeFile(file, buff, err => {
+					if (err) {
+						throw err;
+					}
+				});
+			})
+			.catch(err => {
+				throw err;
+			});
+	});
+};
+
+if ((cli.input.length === 0 && process.stdin.isTTY) || (cli.input.length !== 0 && cli.flags.overwrite)) {
 	console.error('Specify at least one file path');
 	process.exit(1);
 }
 
 (async () => {
-	await run(
-		cli.input.length > 0
-			? cli.input
-			: await getStdin.buffer(),
-		cli.flags);
+	if(cli.flags.overwrite){
+		await runOverwrite(
+			cli.flags.overwrite
+				? cli.input
+				: await getStdin.buffer(),
+			cli.flags);
+	} else {
+		await run(
+			cli.input.length > 0
+				? cli.input
+				: await getStdin.buffer(),
+			cli.flags);
+	}
 })();
