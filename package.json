@@ -3,7 +3,7 @@
 	"version": "7.0.0",
 	"description": "Minify images seamlessly",
 	"license": "MIT",
-	"repository": "imagemin/imagemin-cli",
+	"repository": "SantoshSrinivas79/imagemin-cli",
 	"funding": "https://github.com/imagemin/imagemin-cli?sponsor=1",
 	"type": "module",
 	"bin": {
